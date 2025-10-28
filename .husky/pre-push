@@ -1,0 +1,2 @@
+pnpm test:unit --reporter=list
+pnpm test:e2e --reporter=list

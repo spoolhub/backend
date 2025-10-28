@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  merge_group:
+
+jobs:
+  ci-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run linter
+        run: pnpm run lint
+
+      - name: Build project
+        run: pnpm run build
+
+      - name: Run unit tests
+        run: pnpm run test:unit
+
+      - name: Run E2E tests
+        run: pnpm run test:e2e
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build docker image
+        uses: docker/build-push-action@v6
+        with:
+          tags: spoolhub/backend
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [ci-check]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !startsWith(github.event.head_commit.message, 'chore(release):')
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Generate App Token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private_key: ${{ secrets.RELEASE_BOT_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Release
+        run: |
+          git config --global user.email "no-reply@github.com"
+          git config --global user.name "CI/CD Bot"
+          npx release-it
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+
+      - name: Read package.json
+        uses: zvonimirsun/read-package-version-actions@v2
+        id: package-version
+
+      - name: Extract Major and Minor
+        id: extract_version
+        run: |
+          FULL_VERSION="${{  steps.package-version.outputs.version }}"
+          MAJOR_VERSION=$(echo "$FULL_VERSION" | cut -d'.' -f1)
+          MINOR_VERSION=$(echo "$FULL_VERSION" | cut -d'.' -f1,2)
+          echo "full_version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "major_version=$MAJOR_VERSION" >> "$GITHUB_OUTPUT"
+          echo "minor_version=$MINOR_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ steps.extract_version.outputs.full_version }}, ghcr.io/${{ github.repository }}:${{ steps.extract_version.outputs.minor_version }}, ghcr.io/${{ github.repository }}:${{ steps.extract_version.outputs.major_version }}, ghcr.io/${{ github.repository }}:latest

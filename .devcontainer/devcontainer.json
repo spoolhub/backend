@@ -1,0 +1,48 @@
+{
+  "name": "SpoolHub Backend Development Devcontainer",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
+  "runArgs": ["--name", "spoolhub-backend-devcontainer"],
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": "true",
+      "installOhMyZsh": "true",
+      "configureZshAsDefaultShell": true,
+      "installOhMyZshConfig": true
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:1": {
+      "version": "latest",
+      "moby": true
+    },
+    "ghcr.io/ebizbase/devcontainer-features/omz-plugin:1.0.0": {
+      "preInstalledPlugins": ["git", "git-auto-fetch"],
+      "customPlugins": [
+        "zsh-syntax-highlighting:https://github.com/zsh-users/zsh-syntax-highlighting.git",
+        "you-should-use:https://github.com/MichaelAquilina/zsh-you-should-use.git",
+        "zsh-autosuggestions:https://github.com/zsh-users/zsh-autosuggestions/archive/refs/tags/v0.7.1.zip"
+      ],
+      "deleteInactive": true
+    },
+    "ghcr.io/ebizbase/devcontainer-features/powerlevel10k:1": {
+      "deletePreinstalledThemes": true
+    }
+  },
+  "appPort": [80, 443, 3000],
+  "postCreateCommand": "pnpm install",
+  "postStartCommand": "docker compose up -d --wait",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "firsttris.vscode-jest-runner"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "remote.autoForwardPorts": false,
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": { "zsh": { "path": "/bin/zsh" } }
+      }
+    }
+  }
+}

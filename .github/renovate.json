@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "packageRules": [
+    {
+      "description": "Group all NestJS packages together",
+      "matchPackagePatterns": ["^@nestjs/"],
+      "groupName": "nestjs"
+    },
+    {
+      "description": "Group TypeORM packages",
+      "matchPackageNames": ["typeorm", "@nestjs/typeorm"],
+      "groupName": "typeorm"
+    },
+    {
+      "description": "Group linting and formatting packages",
+      "matchPackagePatterns": ["^eslint", "^@typescript-eslint/", "prettier"],
+      "groupName": "linting & formatting"
+    },
+    {
+      "description": "Group all Docker image updates from docker-compose.yaml",
+      "matchDatasources": ["docker"],
+      "groupName": "docker"
+    }
+  ]
+}

@@ -1,0 +1,179 @@
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      # PostgreSQL configuration variables from .env file
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      # BIND MOUNT: Persist DB data to local directory ./.docker/datas/postgres
+      - ./.docker/tmp-data/postgres:/var/lib/postgresql/data
+    ports:
+      # Map internal DB port to host for NestJS application connection
+      - '${DB_PORT}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Adminer (Database Management Interface)
+  adminer:
+    image: ghcr.io/jeliebig/adminer-autologin:latest
+    container_name: adminer
+    restart: always
+    ports:
+      - '8080:8080'
+    environment:
+      ADMINER_PLUGINS: login-env-vars
+      ADMINER_DRIVER: pgsql
+      ADMINER_SERVER: postgres
+      ADMINER_USERNAME: ${DB_USERNAME}
+      ADMINER_PASSWORD: ${DB_PASSWORD}
+      ADMINER_DB: ${DB_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy # Only start when 'postgres' service is healthy
+    volumes:
+      - ./.docker/configs/adminer-healthcheck.php:/tmp/healthcheck.php
+    healthcheck: # Simple healthcheck checks if the Adminer port is open
+      test: ["CMD", "php", "/tmp/healthcheck.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # 3. Redis Cache/Queue
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    ports:
+      # Map internal Redis port to host
+      - '${REDIS_PORT}:6379'
+    healthcheck: # Checks Redis connection using 'redis-cli ping' command
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # 4. Redis Commander (Redis Management Interface)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis_commander
+    restart: always
+    environment:
+      # Connects to the 'redis' service within the Docker network
+      REDIS_HOSTS: redis
+    ports:
+      # Port 8081 for Redis Commander Web UI
+      - '8081:8081'
+    depends_on:
+      redis:
+        condition: service_healthy # Only start when 'redis' service is healthy
+    healthcheck: # Checks Redis Commander Web UI port
+      test: ["CMD-SHELL", "nc -z 0.0.0.0 8081 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # 5. MinIO (S3-compatible Object Storage)
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: always
+    environment:
+      # MinIO root user/pass configuration variables from AWS keys in .env file
+      MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
+    volumes:
+      # BIND MOUNT: Persist MinIO data to local directory ./.docker/minio
+      - ./.docker/tmp-data/minio:/data
+    ports:
+      # API/Client Port (9000) and Web Console Port (9001)
+      - '9000:9000'
+      - '9001:9001'
+    command: server /data --console-address ":9001"
+    healthcheck: # Checks MinIO readiness using 'mc' command
+      test: ['CMD', 'sh', '-c', 'mc ready local'] # 'local' is the alias defined in MinIO Setup
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # 6. MinIO Setup (Automatic bucket creation)
+  minio-setup:
+    image: minio/mc
+    container_name: minio_bucket_setup
+    depends_on:
+      minio:
+        condition: service_healthy # Only run when 'minio' service is healthy
+    environment:
+      # Directly pass necessary variables for the script
+      MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
+    # Script uses MinIO Client (mc) to create host and buckets
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set local http://minio:9000 ${AWS_S3_ACCESS_KEY_ID} ${AWS_S3_SECRET_ACCESS_KEY};
+
+      /usr/bin/mc mb -p local/assets;
+      /usr/bin/mc anonymous set none local/assets;
+
+      /usr/bin/mc mb -p local/resources;
+      /usr/bin/mc anonymous set download local/resources;
+
+      sleep infinity
+      "
+
+  # 7. MailDev (SMTP Development Server)
+  maildev:
+    image: maildev/maildev
+    container_name: maildev
+    restart: always
+    ports:
+      # SMTP port for receiving emails (standard MailDev port 1025)
+      - '${SMTP_PORT}:1025'
+      # Web UI port for viewing sent emails (standard MailDev port 1080)
+      - '1080:1080'
+    healthcheck: # Checks MailDev Web UI port
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:1080"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  #8. Nginx Reverse Proxy
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    restart: always
+    volumes:
+      # BIND MOUNT: Mount file cấu hình nginx.conf
+      - ./.docker/configs/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.docker/configs/cert.crt:/cert.crt:ro
+      - ./.docker/configs/cert.key:/cert.key:ro
+    ports:
+      # Mở cổng 80 (HTTP) để nhận các domain request
+      - '80:80'
+      - '443:443'
+    depends_on:
+      # Đảm bảo các dịch vụ backend đã sẵn sàng trước khi Nginx chạy
+      postgres:
+        condition: service_healthy
+      adminer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-commander:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      maildev:
+        condition: service_healthy
