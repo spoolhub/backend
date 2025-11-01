@@ -7,11 +7,9 @@ import { MailModule } from 'src/features/mail/mail.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserVerificationToken } from './entities/user-verification_token.entity';
 import { UserSession } from './entities/user-session.entity';
-import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
-    JwtModule.register({}),
     TypeOrmModule.forFeature([UserVerificationToken, UserSession]),
     UserModule,
     MailModule,

@@ -10,6 +10,7 @@ import { AuthModule } from './features/auth/auth.module';
 import { UserModule } from './features/users/user.module';
 import ms from 'ms';
 import { authConfig } from './configs/auth';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -76,6 +77,9 @@ import { authConfig } from './configs/auth';
             : undefined,
         },
       }),
+    }),
+    JwtModule.register({
+      global: true,
     }),
     MailModule,
     AuthModule,
