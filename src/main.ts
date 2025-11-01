@@ -6,10 +6,18 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { commonInit } from './app.init';
 
 void (async () => {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule);
   commonInit(app);
 
   const configService = app.get(ConfigService);
+  const allowedOrigins: string[] = [
+    configService.getOrThrow<string>('app.frontendDomain'),
+    configService.getOrThrow<string>('app.adminDomain'),
+  ];
+  app.enableCors({
+    origin: allowedOrigins,
+    credentials: true,
+  });
 
   const enableDocumentation = configService.get<boolean>(
     'app.enableDocumentation',
