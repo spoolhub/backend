@@ -7,8 +7,10 @@ import {
   OneToOne,
   JoinColumn,
   OneToMany,
+  BeforeInsert,
 } from 'typeorm';
 import { EntityAbstract } from 'src/base/entity/entity.abstract';
+import { v7 as uuidv7 } from 'uuid';
 
 @Entity('users')
 export class User extends EntityAbstract {
@@ -58,4 +60,11 @@ export class User extends EntityAbstract {
 
   @OneToMany(() => File, (file) => file.uploadedById)
   uploadedFiles: File[];
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = uuidv7();
+    }
+  }
 }

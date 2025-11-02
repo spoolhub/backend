@@ -4,9 +4,11 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  BeforeInsert,
 } from 'typeorm';
 import { User } from 'src/features/users/entities/user.entity';
 import { EntityAbstract } from 'src/base/entity/entity.abstract';
+import { v7 as uuidv7 } from 'uuid';
 
 @Entity('user_sessions')
 export class UserSession extends EntityAbstract {
@@ -25,4 +27,11 @@ export class UserSession extends EntityAbstract {
 
   @Column({ name: 'invoked_at', type: 'timestamp', nullable: true })
   invokedAt: Date;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = uuidv7();
+    }
+  }
 }

@@ -4,9 +4,11 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  BeforeInsert,
 } from 'typeorm';
 import { User } from 'src/features/users/entities/user.entity';
 import { EntityAbstract } from 'src/base/entity/entity.abstract';
+import { v7 as uuidv7 } from 'uuid';
 
 @Entity('files')
 export class File extends EntityAbstract {
@@ -34,4 +36,11 @@ export class File extends EntityAbstract {
   @ManyToOne(() => User, (user) => user.uploadedFiles)
   @JoinColumn({ name: 'uploaded_by_id' })
   uploadedBy: User;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = uuidv7();
+    }
+  }
 }
