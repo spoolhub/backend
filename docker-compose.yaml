@@ -41,7 +41,7 @@ services:
     volumes:
       - ./.docker/configs/adminer-healthcheck.php:/tmp/healthcheck.php
     healthcheck: # Simple healthcheck checks if the Adminer port is open
-      test: ["CMD", "php", "/tmp/healthcheck.php"]
+      test: ['CMD', 'php', '/tmp/healthcheck.php']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -56,7 +56,7 @@ services:
       # Map internal Redis port to host
       - '${REDIS_PORT}:6379'
     healthcheck: # Checks Redis connection using 'redis-cli ping' command
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 1s
       timeout: 3s
       retries: 5
@@ -77,7 +77,7 @@ services:
       redis:
         condition: service_healthy # Only start when 'redis' service is healthy
     healthcheck: # Checks Redis Commander Web UI port
-      test: ["CMD-SHELL", "nc -z 0.0.0.0 8081 || exit 1"]
+      test: ['CMD-SHELL', 'nc -z 0.0.0.0 8081 || exit 1']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -90,8 +90,8 @@ services:
     restart: always
     environment:
       # MinIO root user/pass configuration variables from AWS keys in .env file
-      MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
-      MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
+      MINIO_ROOT_USER: ${PUBLIC_AWS_S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${PUBLIC_AWS_S3_SECRET_ACCESS_KEY}
     volumes:
       # BIND MOUNT: Persist MinIO data to local directory ./.docker/minio
       - ./.docker/tmp-data/minio:/data
@@ -116,18 +116,18 @@ services:
         condition: service_healthy # Only run when 'minio' service is healthy
     environment:
       # Directly pass necessary variables for the script
-      MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
-      MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
+      MINIO_ROOT_USER: ${PUBLIC_AWS_S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${PUBLIC_AWS_S3_SECRET_ACCESS_KEY}
     # Script uses MinIO Client (mc) to create host and buckets
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc alias set local http://minio:9000 ${AWS_S3_ACCESS_KEY_ID} ${AWS_S3_SECRET_ACCESS_KEY};
+      /usr/bin/mc alias set local http://minio:9000 ${PUBLIC_AWS_S3_ACCESS_KEY_ID} ${PUBLIC_AWS_S3_SECRET_ACCESS_KEY};
 
-      /usr/bin/mc mb -p local/assets;
-      /usr/bin/mc anonymous set none local/assets;
+      /usr/bin/mc mb -p local/${PRIVATE_AWS_S3_BUCKET_NAME};
+      /usr/bin/mc anonymous set none local/{PRIVATE_AWS_S3_BUCKET_NAME};
 
-      /usr/bin/mc mb -p local/resources;
-      /usr/bin/mc anonymous set download local/resources;
+      /usr/bin/mc mb -p local/${PUBLIC_AWS_S3_BUCKET_NAME};
+      /usr/bin/mc anonymous set download local/${PUBLIC_AWS_S3_BUCKET_NAME};
 
       sleep infinity
       "
@@ -143,7 +143,7 @@ services:
       # Web UI port for viewing sent emails (standard MailDev port 1080)
       - '1080:1080'
     healthcheck: # Checks MailDev Web UI port
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:1080"]
+      test: ['CMD', 'wget', '--no-verbose', '--spider', 'http://localhost:1080']
       interval: 10s
       timeout: 3s
       retries: 5

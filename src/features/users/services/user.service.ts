@@ -33,6 +33,7 @@ export class UserService {
   async findById(id: string): Promise<User | null> {
     return await this.userRepo.findOne({
       where: { id },
+      relations: ['avatar'],
     });
   }
 
@@ -126,5 +127,51 @@ export class UserService {
     user.passwordHash = passwordHash;
     user.passwordUpdatedAt = new Date();
     return await this.userRepo.save(user);
+  }
+
+  async updateUsername(
+    userId: string,
+    data: Partial<Pick<User, 'username'>>
+  ): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (data.username) {
+      const existingUsername = await this.findByUsername(data.username);
+      if (existingUsername && existingUsername.id !== userId) {
+        throw new ConflictException('Username already exists');
+      }
+      user.username = data.username;
+    }
+
+    await this.userRepo.save(user);
+  }
+
+  async updateName(
+    userId: string,
+    data: Partial<Pick<User, 'name'>>
+  ): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (data.name) {
+      user.name = data.name;
+    }
+
+    await this.userRepo.save(user);
+  }
+
+  async updateAvatar(userId: string, fileId: string): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.avatarFileId = fileId;
+    await this.userRepo.save(user);
   }
 }

@@ -10,13 +10,16 @@ import { AuthModule } from './features/auth/auth.module';
 import { UserModule } from './features/users/user.module';
 import ms from 'ms';
 import { authConfig } from './configs/auth';
+import { MeModule } from './features/me/me.module';
 import { JwtModule } from '@nestjs/jwt';
+import { FileModule } from './features/files/file.module';
+import { fileConfig } from './configs/file';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, mailConfig, authConfig],
+      load: [appConfig, databaseConfig, mailConfig, authConfig, fileConfig],
     }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
@@ -81,9 +84,11 @@ import { JwtModule } from '@nestjs/jwt';
     JwtModule.register({
       global: true,
     }),
+    FileModule,
     MailModule,
     AuthModule,
     UserModule,
+    MeModule,
   ],
 })
 export class AppModule {}
