@@ -10,8 +10,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     volumes:
-      # BIND MOUNT: Persist DB data to local directory ./.docker/datas/postgres
-      - ./.docker/tmp-data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     ports:
       # Map internal DB port to host for NestJS application connection
       - '${DB_PORT}:5432'
@@ -93,8 +92,7 @@ services:
       MINIO_ROOT_USER: ${PUBLIC_AWS_S3_ACCESS_KEY_ID}
       MINIO_ROOT_PASSWORD: ${PUBLIC_AWS_S3_SECRET_ACCESS_KEY}
     volumes:
-      # BIND MOUNT: Persist MinIO data to local directory ./.docker/minio
-      - ./.docker/tmp-data/minio:/data
+      - minio_data:/data
     ports:
       # API/Client Port (9000) and Web Console Port (9001)
       - '9000:9000'
@@ -177,3 +175,7 @@ services:
         condition: service_healthy
       maildev:
         condition: service_healthy
+
+volumes:
+  postgres_data:
+  minio_data:
